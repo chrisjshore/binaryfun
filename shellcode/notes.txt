@@ -1,0 +1,60 @@
+echo "epstien didn't kill himself" > flag.txt
+
+use global main to create an executable
+use global epstien:function to create a library
+nasm -f elf32 -o cat cat.asm
+
+in order to see disassembly:
+objdump -D cat.o
+
+if object file is an executable:
+gcc -o cat cat.o -m32
+./cat
+
+if object file is a library:
+gcc-11 -shared -o cat.so cat.o -m32
+
+compiling with gcc to exe or lib not necessary, only for sanity check / demo
+
+regardless if object file is exe or lib, the function opcodes can be tested in:
+gcc-11 -o shelltest shelltest.c -m32
+
+shows the size and offset of the .text section
+readelf -S cat.o
+objdump -x cat.o
+
+better looking disassembly
+objdump -e -F -D -M intel cat.o
+
+copy out raw data from .text section, 32-bit
+objcopy -O binary cat.o cat.bin
+
+copy out raw data from .text section, 64-bit
+objcopy -O binary -j .text adder.o adder.bin
+
+only compile to an object file
+gcc-11 -c adder.c
+
+wrote readbin.c to check endianess was correct and output as unsigned char[]
+gcc-11 -o readbin readbin.c -g
+readbin cat.bin
+
+gcc-11 -o shelladd shelladd.c
+
+workflow:
+dmd -c -betterC add.d
+objcopy -j .text._D3addQeFZi add.o add.bin
+./readbin add.bin
+
+testdobj reads bin file
+
+List linked libraries
+readelf -d elf | grep 'NEEDED'
+
+Interesting JIT's
+GNU Lightning
+dotGNU libjit
+libgccjit  (experimental in v13.0.0)
+
+read Elf32_Dyn struct's from .dynamic section
+read char's until null byte starting at offset defined in each struct's Elf32_Dyn.d_un.d_val

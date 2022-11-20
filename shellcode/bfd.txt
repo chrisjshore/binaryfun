@@ -1,0 +1,18 @@
+.text section calculated by inf->section->filepos + (vma - inf->section-vma) ??
+line 1662 in github.com/bminor/binutils-gdb/blob/master/binutils/objdump.c
+inf is a dissassemble_info struct
+
+static void dissassemble_bytes looks to have printing of opcodes and shit
+function starts on line 3180
+while loop on line 3265 has start and stop offsets
+called on line 4007 from dissassemble_section defined on line 3662
+
+dissassemble_data on line 4031 has a note about dissassembly of an object file
+bfd_map_over_sections must be defined in in a header file
+
+dump_headers defined on line 934 has a call to bfd_map_over_sections
+looks to be used with the -x option
+
+dump_section_header defined on line 807 prints section name, size, and offset
+bfd_section_name(section)
+bfd_section_size(section) / opb     cast to unsigned long
