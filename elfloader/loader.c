@@ -21,12 +21,6 @@ int is_image_valid(Elf32_Ehdr *hdr)
 void* resolve(const char* sym, Elf32_Dyn* dyns, const char* dyn_strings)
 {
     static void *handle = NULL;
-    
-    //Elf32_Dyn *libs = NULL; //needs to point to SHT_STRTAB
-    //libs->d_tag; //DT_NEEDED || DT_RPATH
-    //libs->d_un.d_val;
-    
-    //printf("%s\n",sym);
     int i = 0;
     const char* lib;
 
@@ -34,17 +28,14 @@ void* resolve(const char* sym, Elf32_Dyn* dyns, const char* dyn_strings)
     {
         if(dyns[i].d_tag == DT_NEEDED || dyns[i].d_tag == DT_RPATH || dyns[i].d_tag == DT_RUNPATH)
         {
-            //printf("d_val offset: %x\n", dyns[i].d_un.d_val);
-            //printf("%s\n", dyn_strings + dyns[i].d_un.d_val);
             lib = dyn_strings + dyns[i].d_un.d_val;
-            //printf("%s\n",lib);
-            //printf("%d\n", strlen(lib));
             handle = dlopen(lib, RTLD_NOW);
             
             dlerror();
             void* resolved_sym = dlsym(handle, sym);
             //printf("resolved: %d\n", resolved_sym);
             char* error = dlerror();
+            
             if(error != NULL){                
                 printf("%s\n", error);
                 i++;
@@ -95,59 +86,26 @@ void relocate(Elf32_Shdr* shdr, const Elf32_Sym* syms, Elf32_Dyn* dyns, const ch
     }
 }
 
-// mine
 int find_dynstr_section(Elf32_Ehdr* hdr, Elf32_Shdr* shdr, const char* section_strings)
 {
     for (int i = 0; i < hdr->e_shnum; i++)
     {
-        // best guess that we're at the .dynstr section
-        // need to fix to sh_name == ".dynstr"
-        // the sh_name is an offset from the .shstrtab, the same sh_type as .dynstr
-        // maybe take hdr->e_shstrndx plus sh_name and check if it is equal to .dynstr
         const char* dynstr = section_strings + shdr[i].sh_name;
-        //printf("section: %s\n", dynstr);
-        //printf("compare: %d\n", strcmp(dynstr, ".dynstr"));
+
         if(strcmp(dynstr, ".dynstr") == 0){
             return i;
         }
-
-        //if(shdr[i].sh_type == SHT_STRTAB && shdr[i].sh_flags == SHF_ALLOC){
-            //printf("SH_FLAGS: %u\n", shdr[i].sh_flags);
-            //printf("SHF_EXECINSTR: %u\n", SHF_EXECINSTR);
-            //printf("SHF_ALLOC: %u\n", SHF_ALLOC);
-            //printf("%d", strcmp(shdr[i].sh_name, ".dynstr"));
-
-            //shdr[i].sh_name is the string table index to the name of the section
-            //printf("STRTAB size: 0x%x\n", shdr[i].sh_size);
-            //printf("STRTAB name: 0x%x\n", shdr[i].sh_name);
-
-            // go to offset 2bc then name will be offset again from there
-            //const char* dynstr = (char *)shdr[i].sh_offset + shdr[i].sh_name;
-            //char libName[10];
-            //int offset = shdr[i].sh_offset + 0x4C;
-            //char code = (char)shdr[i].sh_offset + 0x4C;
-            //strncpy(libName, code, sizeof(libName));
-            //printf("%s", libName);
-
-            //return shdr[i].sh_offset;
-            
-            //return i;
-            //break;
-        //}
     }
 
     return -1;
 }
 
-// mine
 int find_dynamic_symbol_table(Elf32_Ehdr* hdr, Elf32_Shdr* shdr)
 {
     for (int i = 0; i < hdr->e_shnum; i++)
     {       
         if (shdr[i].sh_type == SHT_DYNAMIC)
         {
-            //printf("DYNAMIC size: %d\n",shdr[i].sh_size);
-            //printf("SHT_DYNAMIC: %d\n",i);
             return i;
             break;
         }   
@@ -162,7 +120,6 @@ int find_global_symbol_table(Elf32_Ehdr* hdr, Elf32_Shdr* shdr)
     {
         if (shdr[i].sh_type == SHT_DYNSYM)
         {
-            //printf("SHT_DYNSYM: %d\n",i);
             return i;
             break;
         }
@@ -282,22 +239,16 @@ void* image_load(char *elf_start, unsigned int size)
     Elf32_Sym* global_syms = (Elf32_Sym*)(elf_start + shdr[global_symbol_table_index].sh_offset);
     char* global_strings = elf_start + shdr[shdr[global_symbol_table_index].sh_link].sh_offset;
     
-    // find section header string table - mine
+    // find section header string table
     char* section_strings = elf_start + shdr[hdr->e_shstrndx].sh_offset;
-    //printf("dyntest %s\n", section_strings);
 
-    // Find the .dynamic section - mine
+    // Find the .dynamic section
     int dynamic_index = find_dynamic_symbol_table(hdr, shdr);
     Elf32_Dyn* libs = (Elf32_Dyn*)(elf_start + shdr[dynamic_index].sh_offset);
-    //printf("d_tag %d\n", libs[0].d_tag);
-    //printf("d_val %u\n", libs[0].d_un.d_val);
 
-    // Find the .dynster section - mine
-    //int dynstr_index = find_dynstr_section(hdr, shdr);
+    // Find the .dynster section
     int dynstr_index = find_dynstr_section(hdr, shdr, section_strings);
     char* dyn_strings = elf_start + shdr[dynstr_index].sh_offset;
-    //printf(".dynstr index:  %x\n", dynstr_index);
-    //printf(".dynstr offset: %x\n", shdr[dynstr_index].sh_offset);   
 
     // Relocate global dynamic symbols
     for (i = 0; i < hdr->e_shnum; ++i)
